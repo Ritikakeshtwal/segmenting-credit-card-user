@@ -1,62 +1,43 @@
-# 1. Libraries Import
+import os
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 
-# 2. Load Dataset
-df = pd.read_csv("CC GENERAL.csv")
+# Step 0: Create 'plots' folder if it doesn't exist
+os.makedirs("plots", exist_ok=True)
 
-# 3. Basic Info
-print(df.head())
-print(df.info())
+# Step 1: Load dataset
+df = pd.read_csv("Mall_Customers.csv")
 
-# 4. Handle Missing Values
-df = df.drop('CUST_ID', axis=1)  # Customer ID not useful for clustering
-df = df.fillna(df.mean())        # Fill missing with mean
+# Step 2: Select features (Annual Income, Spending Score)
+X = df[['Annual Income (k$)', 'Spending Score (1-100)']]
 
-# 5. Scaling Data
-scaler = StandardScaler()
-scaled_df = scaler.fit_transform(df)
-
-# 6. Find Optimal K (Elbow Method)
+# Step 3: Find optimal number of clusters (Elbow Method)
 wcss = []
-for k in range(2, 11):
-    kmeans = KMeans(n_clusters=k, random_state=42)
-    kmeans.fit(scaled_df)
+for i in range(1, 11):
+    kmeans = KMeans(n_clusters=i, init='k-means++', random_state=42)
+    kmeans.fit(X)
     wcss.append(kmeans.inertia_)
 
-plt.plot(range(2, 11), wcss, marker='o')
-plt.xlabel('Number of Clusters (K)')
+plt.plot(range(1, 11), wcss, marker='o')
+plt.title('Elbow Method')
+plt.xlabel('Number of Clusters')
 plt.ylabel('WCSS')
-plt.title('Elbow Method for Optimal K')
+plt.savefig("plots/elbow_method.png")  # Save elbow plot
 plt.show()
 
-# 7. Fit KMeans with chosen K (example: 4)
-kmeans = KMeans(n_clusters=4, random_state=42)
-clusters = kmeans.fit_predict(scaled_df)
+# Step 4: Apply KMeans with optimal clusters (let's say 5)
+kmeans = KMeans(n_clusters=5, init='k-means++', random_state=42)
+y_kmeans = kmeans.fit_predict(X)
 
-# Add cluster column to original data
-df['Cluster'] = clusters
-
-# 8. Cluster Analysis
-print(df.groupby('Cluster').mean())
-
-# 9. Silhouette Score (Cluster Quality)
-sil_score = silhouette_score(scaled_df, clusters)
-print("Silhouette Score:", sil_score)
-
-# 10. PCA for 2D Visualization
-pca = PCA(n_components=2)
-pca_data = pca.fit_transform(scaled_df)
-
+# Step 5: Visualization
 plt.figure(figsize=(8, 6))
-sns.scatterplot(x=pca_data[:,0], y=pca_data[:,1], hue=clusters, palette='viridis', s=60)
-plt.title('Credit Card Users Segmentation (PCA 2D)')
-plt.xlabel('PCA 1')
-plt.ylabel('PCA 2')
+plt.scatter(X.iloc[:, 0], X.iloc[:, 1], c=y_kmeans, cmap='rainbow', s=50)
+plt.scatter(kmeans.cluster_centers_[:, 0], kmeans.cluster_centers_[:, 1],
+            s=200, c='black', marker='X', label='Centroids')
+plt.title('Customer Segmentation')
+plt.xlabel('Annual Income (k$)')
+plt.ylabel('Spending Score (1-100)')
+plt.legend()
+plt.savefig("plots/customer_segments.png")  # Save segmentation plot
 plt.show()
